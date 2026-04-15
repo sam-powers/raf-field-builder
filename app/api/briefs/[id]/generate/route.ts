@@ -77,12 +77,18 @@ export async function POST(_: NextRequest, { params }: { params: Promise<{ id: s
     return `## ${org}: "${title}"\n\n${text}`
   }).join('\n\n---\n\n')
 
-  const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 4000,
-    messages: [{
-      role: 'user',
-      content: `You are writing a field brief for member organizations of a policy coalition coordinated by the Recode America Fund (RAF). The brief is for the constituent organizations — not for internal RAF staff. It should be accessible, clear, and useful to a policy staffer at any of the member organizations, regardless of their technical background or ideological orientation.
+  const sampleTexts = briefDocs.map((bd: any) =>
+    `Organization: ${bd.documents?.organizations?.name}\nDocument: ${bd.documents?.title}\n\n${bd.documents?.raw_text?.slice(0, 2000)}`
+  ).join('\n\n---\n\n')
+
+  // Run constituent brief + internal codebook generation in parallel
+  const [briefResponse, codebookResponse] = await Promise.all([
+    anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 4000,
+      messages: [{
+        role: 'user',
+        content: `You are writing a field brief for member organizations of a policy coalition coordinated by the Recode America Fund (RAF). The brief is for the constituent organizations — not for internal RAF staff. It should be accessible, clear, and useful to a policy staffer at any of the member organizations, regardless of their technical background or ideological orientation.
 
 Issue Area: ${brief.issue_areas?.name}
 Description: ${brief.issue_areas?.description ?? ''}
@@ -101,16 +107,57 @@ Write a field brief in markdown format that:
 
 Use plain, accessible prose. Avoid jargon. Attribute positions to specific organizations by name. Use markdown headers (##) for sections. The brief should be 600–900 words.
 
-End with a brief attribution line: *This brief was prepared for coalition member organizations of the Recode America Fund.*`
-    }]
-  })
+End with a brief attribution line: *This brief was prepared for coalition member organizations of the Recode America Fund.*`,
+      }],
+    }),
+    anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 4000,
+      messages: [{
+        role: 'user',
+        content: `Generate a coding reference guide for this policy analysis brief.
 
-  const brief_content = (response.content[0] as any).text
+Issue Area: ${brief.issue_areas?.name}
+Description: ${brief.issue_areas?.description ?? ''}
 
-  // Save to DB
+Topic Questions:
+${topicQuestions.map((q, i) => `${i + 1}. ${q}`).join('\n')}
+
+Sample documents from corpus:
+${sampleTexts}
+
+For each topic question, provide:
+1. A clear description of what counts as "addressing" this question
+2. 2-3 example quotes from the sample documents that would count as addressing it (use real quotes if present)
+
+Return as JSON: {
+  "issue_area": "...",
+  "description": "...",
+  "version": 1,
+  "generated_at": "...",
+  "questions": [
+    {
+      "question": "...",
+      "guidance": "What counts as addressing this question...",
+      "examples": ["quote 1", "quote 2"]
+    }
+  ]
+}`,
+      }],
+    }),
+  ])
+
+  const brief_content = (briefResponse.content[0] as any).text
+
+  const codebookText = (codebookResponse.content[0] as any).text
+  const jsonMatch = codebookText.match(/\{[\s\S]*\}/)
+  const codebook_content = jsonMatch ? JSON.parse(jsonMatch[0]) : { questions: [] }
+  codebook_content.generated_at = new Date().toISOString()
+
+  // Save both outputs to DB
   await supabase
     .from('briefs')
-    .update({ brief_content })
+    .update({ brief_content, codebook_content })
     .eq('id', id)
 
   return NextResponse.json({ brief_content })

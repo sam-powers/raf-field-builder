@@ -18,6 +18,7 @@ interface Brief {
   topic_questions: string[]
   approved_at: string | null
   brief_content: string | null
+  codebook_content: Record<string, unknown> | null
   issue_areas: { id: string; name: string; description: string | null }
 }
 
@@ -52,7 +53,6 @@ export default function BriefBuilderPage() {
   const [questions, setQuestions] = useState<string[]>([])
   const [newQuestion, setNewQuestion] = useState('')
   const [saving, setSaving] = useState(false)
-  const [approving, setApproving] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [savedOk, setSavedOk] = useState(false)
@@ -119,27 +119,6 @@ export default function BriefBuilderPage() {
     })
   }
 
-  const handleApprove = async () => {
-    if (questions.length === 0) return setError('Add at least one topic question before approving')
-    setApproving(true)
-    setError(null)
-    try {
-      await fetch(`/api/briefs/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topic_questions: questions }),
-      })
-      const res = await fetch(`/api/briefs/${id}/approve`, { method: 'POST' })
-      const data = await res.json()
-      if (data.error) throw new Error(data.error)
-      await fetchBrief()
-    } catch (err: any) {
-      setError(err.message)
-    } finally {
-      setApproving(false)
-    }
-  }
-
   const handleGenerateBrief = async () => {
     if (questions.length === 0) return setError('Add at least one topic question before generating a brief')
     setGenerating(true)
@@ -186,8 +165,8 @@ export default function BriefBuilderPage() {
           <div>
             <div className="flex items-center gap-3 mb-1">
               <h2 className="text-2xl font-bold text-slate-900">{brief.issue_areas?.name}</h2>
-              <Badge variant={brief.brief_content ? 'default' : brief.approved_at ? 'secondary' : 'outline'}>
-                {brief.brief_content ? 'Brief ready' : brief.approved_at ? 'Codebook ready' : 'Draft'}
+              <Badge variant={brief.brief_content ? 'default' : 'outline'}>
+                {brief.brief_content ? 'Brief ready' : 'Draft'}
               </Badge>
             </div>
             {brief.issue_areas?.description && (
@@ -195,12 +174,10 @@ export default function BriefBuilderPage() {
             )}
           </div>
           <div className="flex gap-2 shrink-0">
-            {brief.approved_at && (
-              <Link href={`/alignment/${id}`}>
-                <Button variant="outline" size="sm">Alignment</Button>
-              </Link>
-            )}
-            {brief.approved_at && (
+            <Link href={`/alignment/${id}`}>
+              <Button variant="outline" size="sm">Alignment</Button>
+            </Link>
+            {brief.codebook_content && (
               <Link href={`/codebook/${id}`}>
                 <Button variant="ghost" size="sm" className="text-slate-500">Codebook</Button>
               </Link>
@@ -269,17 +246,6 @@ export default function BriefBuilderPage() {
                 </Button>
                 {savedOk && <span className="text-sm text-green-600">Saved</span>}
                 <div className="ml-auto flex gap-2">
-                  {!brief.approved_at && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleApprove}
-                      disabled={approving}
-                      className="text-slate-500"
-                    >
-                      {approving ? 'Generating codebook...' : 'Generate Codebook'}
-                    </Button>
-                  )}
                   <Button
                     size="sm"
                     onClick={handleGenerateBrief}

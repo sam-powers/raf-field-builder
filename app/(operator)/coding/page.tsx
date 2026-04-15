@@ -9,7 +9,7 @@ import { Progress } from '@/components/ui/progress'
 interface Brief {
   id: string
   batch_id: string | null
-  approved_at: string
+  topic_questions: string[]
   issue_areas: { name: string }
 }
 
@@ -36,8 +36,8 @@ export default function CodingPage() {
     setLoading(true)
     const res = await fetch('/api/briefs')
     const data = await res.json()
-    const approved = (Array.isArray(data) ? data : []).filter((b: any) => b.approved_at)
-    setBriefs(approved)
+    const withQuestions = (Array.isArray(data) ? data : []).filter((b: any) => b.topic_questions?.length > 0)
+    setBriefs(withQuestions)
     setLoading(false)
   }
 
@@ -109,8 +109,11 @@ export default function CodingPage() {
 
       {briefs.length === 0 ? (
         <div className="text-center py-16 text-slate-500">
-          <p>No approved briefs yet.</p>
-          <p className="text-sm mt-1">Approve a brief in the Briefs section first.</p>
+          <p>No topics with questions yet.</p>
+          <p className="text-sm mt-1">
+            Add questions to a topic brief from the{' '}
+            <a href="/detect" className="text-blue-600 hover:underline">Topics</a> page first.
+          </p>
         </div>
       ) : (
         <div className="space-y-4">
