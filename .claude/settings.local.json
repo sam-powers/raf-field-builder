@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(research-user)",
+      "WebSearch",
+      "Skill(update-config)",
+      "Skill(build)"
+    ]
+  }
+}
