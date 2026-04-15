@@ -1,14 +1,15 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
+import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Separator } from '@/components/ui/separator'
+import ReactMarkdown from 'react-markdown'
 
 interface Quote {
   text: string
@@ -29,12 +30,6 @@ interface Coding {
   }
 }
 
-interface SheetData {
-  org: string
-  question: string
-  quotes: Quote[]
-}
-
 export default function AlignmentPage() {
   const params = useParams()
   const briefId = params.briefId as string
@@ -42,8 +37,7 @@ export default function AlignmentPage() {
   const [codings, setCodings] = useState<Coding[]>([])
   const [briefName, setBriefName] = useState('')
   const [loading, setLoading] = useState(true)
-  const [sheetOpen, setSheetOpen] = useState(false)
-  const [sheetData, setSheetData] = useState<SheetData | null>(null)
+  const [expandedQuestions, setExpandedQuestions] = useState<Set<string>>(new Set())
   const [reportOpen, setReportOpen] = useState(false)
   const [narrative, setNarrative] = useState('')
   const [generatingReport, setGeneratingReport] = useState(false)
@@ -79,11 +73,13 @@ export default function AlignmentPage() {
     codingMap.get(org)!.set(coding.topic_question, coding)
   }
 
-  const openSheet = (org: string, question: string) => {
-    const coding = codingMap.get(org)?.get(question)
-    if (!coding || !coding.addressed) return
-    setSheetData({ org, question, quotes: coding.quotes ?? [] })
-    setSheetOpen(true)
+  const toggleQuestion = (q: string) => {
+    setExpandedQuestions(prev => {
+      const next = new Set(prev)
+      if (next.has(q)) next.delete(q)
+      else next.add(q)
+      return next
+    })
   }
 
   const generateReport = async () => {
@@ -107,6 +103,10 @@ export default function AlignmentPage() {
     }))
   }
 
+  const copyNarrative = () => {
+    navigator.clipboard.writeText(narrative)
+  }
+
   if (loading) {
     return (
       <div className="flex justify-center py-16">
@@ -116,79 +116,128 @@ export default function AlignmentPage() {
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex items-start justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-900">Alignment: {briefName}</h2>
-          <p className="text-slate-500 mt-1">
-            {orgs.length} organizations · {questions.length} questions
-          </p>
+    <div className="space-y-6">
+      {/* Breadcrumb + header */}
+      <div>
+        <Link href={`/briefs/${briefId}`} className="text-sm text-slate-500 hover:text-slate-700 inline-flex items-center gap-1 mb-3">
+          ← Back to Brief
+        </Link>
+        <div className="flex items-start justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-900">Alignment: {briefName}</h2>
+            <p className="text-slate-500 mt-1">
+              {orgs.length} organizations · {questions.length} questions
+            </p>
+          </div>
+          <Button onClick={generateReport} disabled={generatingReport} variant="outline">
+            {generatingReport ? 'Generating...' : 'Generate Field Narrative'}
+          </Button>
         </div>
-        <Button onClick={generateReport} disabled={generatingReport}>
-          {generatingReport ? 'Generating...' : 'Generate Field Narrative'}
-        </Button>
       </div>
 
-      <Tabs defaultValue="grid">
+      <Tabs defaultValue="questions">
         <TabsList>
-          <TabsTrigger value="grid">Grid View</TabsTrigger>
+          <TabsTrigger value="questions">Question View</TabsTrigger>
           <TabsTrigger value="sidebyside">Side by Side</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="grid" className="mt-6">
+        {/* Question-first cards */}
+        <TabsContent value="questions" className="mt-6">
           {codings.length === 0 ? (
             <div className="text-center py-16 text-slate-500">
               <p>No codings yet.</p>
-              <p className="text-sm mt-1">Run coding from the Coding dashboard first.</p>
+              <p className="text-sm mt-1">Run coding from the <Link href="/coding" className="text-blue-600 hover:underline">Coding dashboard</Link> first.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-sm">
-                <thead>
-                  <tr>
-                    <th className="text-left p-3 bg-slate-50 border border-slate-200 font-medium text-slate-700 min-w-[200px]">
-                      Question
-                    </th>
-                    {orgs.map(org => (
-                      <th key={org} className="text-left p-3 bg-slate-50 border border-slate-200 font-medium text-slate-700 min-w-[120px]">
-                        <span className="truncate block max-w-[140px]" title={org}>{org}</span>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {questions.map((q, qi) => (
-                    <tr key={qi} className={qi % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
-                      <td className="p-3 border border-slate-200 text-slate-700 text-xs leading-snug">
-                        {q}
-                      </td>
-                      {orgs.map(org => {
-                        const coding = codingMap.get(org)?.get(q)
-                        const addressed = coding?.addressed ?? false
-                        return (
-                          <td
-                            key={org}
-                            className="p-3 border border-slate-200 text-center cursor-pointer hover:bg-blue-50 transition-colors"
-                            onClick={() => openSheet(org, q)}
-                          >
-                            {addressed ? (
-                              <Badge className="bg-green-100 text-green-800 hover:bg-green-100 text-xs">
-                                ✓
-                              </Badge>
-                            ) : (
-                              <span className="text-slate-300">—</span>
-                            )}
-                          </td>
-                        )
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="space-y-4">
+              {questions.map((q, qi) => {
+                const addressedOrgs = orgs.filter(org => codingMap.get(org)?.get(q)?.addressed)
+                const notAddressedOrgs = orgs.filter(org => !codingMap.get(org)?.get(q)?.addressed)
+                const isExpanded = expandedQuestions.has(q)
+
+                return (
+                  <Card key={qi} className="overflow-hidden">
+                    <CardHeader
+                      className="pb-3 cursor-pointer select-none hover:bg-slate-50 transition-colors"
+                      onClick={() => addressedOrgs.length > 0 && toggleQuestion(q)}
+                    >
+                      <div className="flex items-start gap-3">
+                        <span className="text-slate-400 text-sm font-medium shrink-0 mt-0.5">
+                          Q{qi + 1}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <CardTitle className="text-sm font-medium text-slate-800 leading-snug mb-2">
+                            {q}
+                          </CardTitle>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs text-slate-500">
+                              {addressedOrgs.length} of {orgs.length} orgs addressed this
+                            </span>
+                            <div className="flex flex-wrap gap-1">
+                              {addressedOrgs.map(org => (
+                                <Badge
+                                  key={org}
+                                  className="text-xs bg-green-100 text-green-800 hover:bg-green-100"
+                                >
+                                  {org}
+                                </Badge>
+                              ))}
+                              {notAddressedOrgs.map(org => (
+                                <Badge
+                                  key={org}
+                                  variant="outline"
+                                  className="text-xs text-slate-400 border-slate-200"
+                                >
+                                  {org}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                        {addressedOrgs.length > 0 && (
+                          <span className="text-slate-400 text-xs shrink-0 mt-0.5">
+                            {isExpanded ? '▲' : '▼'}
+                          </span>
+                        )}
+                      </div>
+                    </CardHeader>
+
+                    {isExpanded && addressedOrgs.length > 0 && (
+                      <CardContent className="pt-0 border-t border-slate-100">
+                        <div className="space-y-4 pt-4">
+                          {addressedOrgs.map(org => {
+                            const coding = codingMap.get(org)?.get(q)
+                            const quotes = coding?.quotes ?? []
+                            return (
+                              <div key={org}>
+                                <p className="text-xs font-semibold text-slate-700 mb-2 uppercase tracking-wider">{org}</p>
+                                {quotes.slice(0, 2).map((quote, qi2) => (
+                                  <div key={qi2} className="mb-2">
+                                    <blockquote className="border-l-2 border-blue-300 pl-3 text-sm text-slate-700 italic">
+                                      "{quote.text}"
+                                    </blockquote>
+                                    {quote.context && (
+                                      <p className="text-xs text-slate-400 pl-3 mt-0.5">{quote.context}</p>
+                                    )}
+                                  </div>
+                                ))}
+                                {quotes.length === 0 && (
+                                  <p className="text-xs text-slate-400 italic">Addressed but no specific quotes extracted.</p>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </CardContent>
+                    )}
+                  </Card>
+                )
+              })}
             </div>
           )}
         </TabsContent>
 
+        {/* Side by side — unchanged */}
         <TabsContent value="sidebyside" className="mt-6">
           <div className="space-y-4">
             <div className="flex gap-4 items-end">
@@ -254,40 +303,25 @@ export default function AlignmentPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Quote Sheet */}
-      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent className="w-[500px] sm:max-w-[500px] overflow-y-auto">
-          <SheetHeader className="mb-4">
-            <SheetTitle>{sheetData?.org}</SheetTitle>
-            <p className="text-sm text-slate-500 mt-1 leading-snug">{sheetData?.question}</p>
-          </SheetHeader>
-          <Separator className="mb-4" />
-          <div className="space-y-4">
-            {sheetData?.quotes.map((q, idx) => (
-              <div key={idx} className="space-y-1">
-                <blockquote className="border-l-2 border-blue-400 pl-4 text-sm text-slate-700 italic">
-                  "{q.text}"
-                </blockquote>
-                <p className="text-xs text-slate-500 pl-4">{q.context}</p>
-              </div>
-            ))}
-            {(!sheetData?.quotes || sheetData.quotes.length === 0) && (
-              <p className="text-slate-400 text-sm">No quotes extracted.</p>
-            )}
-          </div>
-        </SheetContent>
-      </Sheet>
-
-      {/* Report Dialog */}
+      {/* Field Narrative Dialog */}
       <Dialog open={reportOpen} onOpenChange={setReportOpen}>
         <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Field Landscape Narrative: {briefName}</DialogTitle>
+            <div className="flex items-center justify-between">
+              <DialogTitle>Field Narrative: {briefName}</DialogTitle>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={copyNarrative}
+                className="ml-4 shrink-0"
+              >
+                Copy
+              </Button>
+            </div>
           </DialogHeader>
-          <div className="prose prose-sm max-w-none mt-4">
-            <pre className="whitespace-pre-wrap font-sans text-sm text-slate-700 leading-relaxed">
-              {narrative}
-            </pre>
+          <Separator />
+          <div className="prose prose-slate prose-sm max-w-none mt-2">
+            <ReactMarkdown>{narrative}</ReactMarkdown>
           </div>
         </DialogContent>
       </Dialog>

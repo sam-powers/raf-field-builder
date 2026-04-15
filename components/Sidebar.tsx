@@ -5,17 +5,16 @@ import { usePathname } from 'next/navigation'
 
 const navItems = [
   { href: '/library', label: 'Document Library' },
-  { href: '/detect', label: 'Issue Areas' },
-  { href: '/briefs', label: 'Briefs' },
+  { href: '/detect', label: 'Topics' },
   { href: '/coding', label: 'Coding' },
 ]
 
-// Routes that belong to the Briefs nav section
-const BRIEFS_ROUTES = ['/briefs', '/alignment', '/codebook']
+// Routes that belong to the Topics nav section
+const TOPICS_ROUTES = ['/detect', '/briefs', '/alignment', '/codebook']
 
 function getActiveNav(pathname: string): string {
-  if (BRIEFS_ROUTES.some(r => pathname === r || pathname.startsWith(r + '/'))) {
-    return '/briefs'
+  if (TOPICS_ROUTES.some(r => pathname === r || pathname.startsWith(r + '/'))) {
+    return '/detect'
   }
   for (const item of navItems) {
     if (pathname === item.href || pathname.startsWith(item.href + '/')) {
