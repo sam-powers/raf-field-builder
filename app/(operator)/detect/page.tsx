@@ -230,10 +230,10 @@ export default function TopicsPage() {
                         {brief.issue_areas?.name ?? 'Untitled'}
                       </CardTitle>
                       <Badge
-                        variant={brief.brief_content ? 'default' : brief.approved_at ? 'secondary' : 'outline'}
+                        variant={brief.brief_content ? 'default' : 'outline'}
                         className="shrink-0 text-xs"
                       >
-                        {brief.brief_content ? 'Brief ready' : brief.approved_at ? 'Codebook ready' : 'Draft'}
+                        {brief.brief_content ? 'Brief ready' : 'Draft'}
                       </Badge>
                     </div>
                   </CardHeader>
