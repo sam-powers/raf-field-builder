@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseServer } from '@/lib/supabase'
 import { anthropic } from '@/lib/anthropic'
+import { isDemoMode } from '@/lib/demo'
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ briefId: string }> }) {
+  if (isDemoMode) {
+    return NextResponse.json({ status: 'ended', request_counts: { processing: 0, succeeded: 7, errored: 0, canceled: 0, expired: 0 }, codings_saved: 28 })
+  }
   const supabase = supabaseServer()
   const { briefId } = await params
 

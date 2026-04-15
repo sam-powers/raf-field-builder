@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseServer } from '@/lib/supabase'
 import { anthropic } from '@/lib/anthropic'
+import { isDemoMode } from '@/lib/demo'
 
 export async function POST(req: NextRequest) {
+  if (isDemoMode) {
+    await new Promise(r => setTimeout(r, 1000))
+    return NextResponse.json({ batch_id: 'demo-batch', request_counts: { processing: 0, succeeded: 7, errored: 0, canceled: 0, expired: 0 } })
+  }
   const supabase = supabaseServer()
   const { brief_id } = await req.json()
 

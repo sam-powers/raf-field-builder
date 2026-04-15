@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseServer } from '@/lib/supabase'
 import { anthropic } from '@/lib/anthropic'
+import { isDemoMode } from '@/lib/demo'
+import { DEMO_NARRATIVE } from '@/lib/demo-data'
 
 export async function POST(_: NextRequest, { params }: { params: Promise<{ briefId: string }> }) {
+  if (isDemoMode) {
+    await new Promise(r => setTimeout(r, 2000))
+    return NextResponse.json({ narrative: DEMO_NARRATIVE })
+  }
   const supabase = supabaseServer()
   const { briefId } = await params
 

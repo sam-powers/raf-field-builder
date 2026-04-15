@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseServer } from '@/lib/supabase'
+import { isDemoMode } from '@/lib/demo'
+import { DEMO_BRIEF_DOCUMENTS } from '@/lib/demo-data'
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const supabase = supabaseServer()
   const { id } = await params
+  if (isDemoMode) {
+    return NextResponse.json(DEMO_BRIEF_DOCUMENTS.filter(bd => bd.brief_id === id))
+  }
+  const supabase = supabaseServer()
 
   // Get brief's issue area embedding
   const { data: brief } = await supabase
@@ -52,6 +57,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  if (isDemoMode) return NextResponse.json({ ok: true })
   const supabase = supabaseServer()
   const { id } = await params
   const { document_id, included } = await req.json()

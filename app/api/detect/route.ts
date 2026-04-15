@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server'
 import { supabaseServer } from '@/lib/supabase'
 import { anthropic } from '@/lib/anthropic'
+import { isDemoMode } from '@/lib/demo'
+import { DEMO_DETECTED_AREAS } from '@/lib/demo-data'
 
 export async function POST() {
+  if (isDemoMode) {
+    await new Promise(r => setTimeout(r, 1500))
+    return NextResponse.json({ areas: DEMO_DETECTED_AREAS })
+  }
   const supabase = supabaseServer()
   const { data: docs } = await supabase.from('documents').select('id, title, raw_text, organizations(name)')
 

@@ -21,6 +21,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className={inter.className}>
+        {process.env.NEXT_PUBLIC_DEMO_MODE === 'true' && (
+          <div className="bg-amber-400 text-amber-900 text-xs text-center py-1 font-medium">
+            Demo Mode — synthetic data only. Connect Supabase + API keys to go live.
+          </div>
+        )}
         <div className="flex h-screen bg-slate-50">
           <aside className="w-56 bg-slate-900 text-slate-100 flex flex-col">
             <div className="p-5 border-b border-slate-700">
