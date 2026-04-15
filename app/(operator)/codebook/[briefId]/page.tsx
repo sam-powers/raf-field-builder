@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -91,11 +92,16 @@ export default function CodebookPage() {
 
   if (error) {
     return (
-      <div className="text-center py-16">
-        <p className="text-red-600">{error}</p>
-        <Link href={`/briefs/${briefId}`}>
-          <Button variant="outline" className="mt-4">Back to Brief</Button>
+      <div className="space-y-6">
+        <Link href={`/briefs/${briefId}`} className="text-sm text-slate-500 hover:text-slate-700 inline-flex items-center gap-1">
+          ← Back to Brief
         </Link>
+        <div className="text-center py-16 border border-dashed border-slate-200 rounded-lg">
+          <p className="text-slate-600 mb-3">{error}</p>
+          <Link href={`/briefs/${briefId}`}>
+            <Button variant="outline" size="sm">Go to Brief Builder</Button>
+          </Link>
+        </div>
       </div>
     )
   }
@@ -104,6 +110,9 @@ export default function CodebookPage() {
 
   return (
     <div className="space-y-8">
+      <Link href={`/briefs/${briefId}`} className="text-sm text-slate-500 hover:text-slate-700 inline-flex items-center gap-1">
+        ← Back to Brief
+      </Link>
       <div className="flex items-start justify-between">
         <div>
           <h2 className="text-2xl font-bold text-slate-900">Codebook: {codebook.issue_area}</h2>
