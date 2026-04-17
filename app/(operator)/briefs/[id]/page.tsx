@@ -7,6 +7,7 @@ import ReactMarkdown from 'react-markdown'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -98,6 +99,11 @@ function BriefTab({ brief, id, onBriefGenerated }: {
   const [error, setError] = useState<string | null>(null)
   const [savedOk, setSavedOk] = useState(false)
   const [innerTab, setInnerTab] = useState('questions')
+  const [editComment, setEditComment] = useState('')
+  const [editSuggestion, setEditSuggestion] = useState<string | null>(null)
+  const [suggesting, setSuggesting] = useState(false)
+  const [acceptingEdit, setAcceptingEdit] = useState(false)
+  const [editError, setEditError] = useState<string | null>(null)
 
   const fetchDocs = useCallback(async () => {
     setDocsLoading(true)
@@ -170,6 +176,48 @@ function BriefTab({ brief, id, onBriefGenerated }: {
       setError(err.message)
     } finally {
       setGenerating(false)
+    }
+  }
+
+  const handleSuggestEdit = async () => {
+    if (!editComment.trim()) return
+    setSuggesting(true)
+    setEditError(null)
+    try {
+      const res = await fetch(`/api/briefs/${id}/suggest-edit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ comment: editComment }),
+      })
+      const data = await res.json()
+      if (data.error) throw new Error(data.error)
+      setEditSuggestion(data.suggested_content)
+    } catch (err: any) {
+      setEditError(err.message)
+    } finally {
+      setSuggesting(false)
+    }
+  }
+
+  const handleAcceptSuggestion = async () => {
+    if (!editSuggestion) return
+    setAcceptingEdit(true)
+    setEditError(null)
+    try {
+      const res = await fetch(`/api/briefs/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ brief_content: editSuggestion }),
+      })
+      const data = await res.json()
+      if (data.error) throw new Error(data.error)
+      onBriefGenerated(editSuggestion)
+      setEditSuggestion(null)
+      setEditComment('')
+    } catch (err: any) {
+      setEditError(err.message)
+    } finally {
+      setAcceptingEdit(false)
     }
   }
 
@@ -316,13 +364,67 @@ function BriefTab({ brief, id, onBriefGenerated }: {
                 <p className="text-sm text-slate-500">
                   Constituent-facing brief — suitable for sharing with coalition members
                 </p>
-                <Button size="sm" variant="outline" onClick={handleGenerateBrief} disabled={generating}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleGenerateBrief}
+                  disabled={generating || !!editSuggestion}
+                >
                   {generating ? 'Regenerating...' : 'Regenerate'}
                 </Button>
               </div>
-              <div className="border border-slate-200 rounded-lg p-8 bg-white prose prose-slate max-w-none">
-                <ReactMarkdown>{brief.brief_content}</ReactMarkdown>
-              </div>
+
+              {editSuggestion ? (
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between gap-4 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3">
+                    <div>
+                      <p className="text-sm font-medium text-amber-900">Suggested revision</p>
+                      <p className="text-xs text-amber-700 mt-0.5">Based on: &ldquo;{editComment}&rdquo;</p>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <Button size="sm" variant="outline" onClick={() => setEditSuggestion(null)}>
+                        Discard
+                      </Button>
+                      <Button size="sm" onClick={handleAcceptSuggestion} disabled={acceptingEdit}>
+                        {acceptingEdit ? 'Applying...' : 'Accept changes'}
+                      </Button>
+                    </div>
+                  </div>
+                  {editError && <p className="text-sm text-red-600">{editError}</p>}
+                  <div className="border border-amber-200 rounded-lg p-8 bg-white prose prose-slate max-w-none">
+                    <ReactMarkdown>{editSuggestion}</ReactMarkdown>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="border border-slate-200 rounded-lg p-8 bg-white prose prose-slate max-w-none">
+                    <ReactMarkdown>{brief.brief_content}</ReactMarkdown>
+                  </div>
+                  <div className="border border-slate-200 rounded-lg p-4 bg-slate-50 space-y-3">
+                    <p className="text-sm font-medium text-slate-700">Suggest an edit</p>
+                    <Textarea
+                      placeholder='e.g. "Simplify the second section for a non-expert reader" or "Add more emphasis on hiring timelines"'
+                      value={editComment}
+                      onChange={e => setEditComment(e.target.value)}
+                      rows={2}
+                      className="resize-none bg-white"
+                    />
+                    {editError && <p className="text-xs text-red-600">{editError}</p>}
+                    <Button
+                      size="sm"
+                      onClick={handleSuggestEdit}
+                      disabled={suggesting || !editComment.trim()}
+                    >
+                      {suggesting ? (
+                        <span className="flex items-center gap-2">
+                          <span className="animate-spin rounded-full h-3 w-3 border-b-2 border-white" />
+                          Getting suggestion...
+                        </span>
+                      ) : 'Get suggestion'}
+                    </Button>
+                  </div>
+                </>
+              )}
             </div>
           ) : (
             <div className="text-center py-20 border border-dashed border-slate-200 rounded-lg">
